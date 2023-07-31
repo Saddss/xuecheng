@@ -13,6 +13,7 @@ import com.xuecheng.content.model.dto.CourseBaseInfoDto;
 import com.xuecheng.content.model.dto.EditCourseDto;
 import com.xuecheng.content.model.dto.QueryCourseParamsDto;
 import com.xuecheng.content.model.po.CourseBase;
+import com.xuecheng.content.model.po.CourseCategory;
 import com.xuecheng.content.model.po.CourseMarket;
 import com.xuecheng.content.service.CourseBaseInfoService;
 import lombok.extern.slf4j.Slf4j;
@@ -44,8 +45,9 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
     @Autowired
     CourseCategoryMapper courseCategoryMapper;
 
+
     @Override
-    public PageResult<CourseBase> queryCourseBaseList(PageParams pageParams, QueryCourseParamsDto courseParamsDto) {
+    public PageResult<CourseBase> queryCourseBaseList(Long companyId,PageParams pageParams, QueryCourseParamsDto courseParamsDto) {
 
         //拼装查询条件
         LambdaQueryWrapper<CourseBase> queryWrapper = new LambdaQueryWrapper<>();
@@ -54,6 +56,8 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         //根据课程审核状态查询 course_base.audit_status = ?
         queryWrapper.eq(StringUtils.isNotEmpty(courseParamsDto.getAuditStatus()), CourseBase::getAuditStatus,courseParamsDto.getAuditStatus());
         //todo:按课程发布状态查询
+        //根据培训机构id拼装查询条件
+        queryWrapper.eq(CourseBase::getCompanyId,companyId);
 
         //创建page分页参数对象，参数：当前页码，每页记录数
         Page<CourseBase> page = new Page<>(pageParams.getPageNo(), pageParams.getPageSize());
@@ -134,6 +138,7 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         //从数据库查询课程的详细信息，包括两部分
         CourseBaseInfoDto courseBaseInfo = getCourseBaseInfo(courseId);
 
+
         return courseBaseInfo;
     }
 
@@ -156,7 +161,12 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         }
 
         //通过courseCategoryMapper查询分类信息，将分类名称放在courseBaseInfoDto对象
-        //todo：课程分类的名称设置到courseBaseInfoDto
+        CourseCategory mtObj = courseCategoryMapper.selectById(courseBase.getMt());
+        String mtName = mtObj.getName();//大分类名称
+        courseBaseInfoDto.setMtName(mtName);
+        CourseCategory stObj = courseCategoryMapper.selectById(courseBase.getSt());
+        String stName = stObj.getName();//小分类名称
+        courseBaseInfoDto.setStName(stName);
 
         return courseBaseInfoDto;
 
@@ -191,7 +201,10 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
             XueChengPlusException.cast("修改课程失败");
         }
         //更新营销信息
-        //todo:更新营销信息
+        CourseMarket courseMarket = new CourseMarket();
+        BeanUtils.copyProperties(editCourseDto,courseMarket);
+
+        saveCourseMarket(courseMarket);
         //查询课程信息
         CourseBaseInfoDto courseBaseInfo = getCourseBaseInfo(courseId);
 
